@@ -22,34 +22,28 @@ model, city_map, state_map, metadata = load_data()
 df_locations = pd.read_csv('location_reference.csv')
 
 #Create header
-st.title("Home Price Estimator")
-st.write("Enter your desired features for a data-driven market evaluation.")
+st.title("Home Price Estimator", text_alignment="center")
+st.sidebar.subheader("Select your options below.", text_alignment="center")
 
-#Create layout for the inputs
-col1, col2 = st.columns(2)
 
-#Configure first column
-with col1:
-    st.subheader("Features")
-    beds = st.slider("Number of bedrooms:", min_value=1, max_value=10)
-    baths = st.slider("Number of bathrooms:", min_value=1, max_value=10)
-    size = st.slider("Square Footage:", min_value=200, max_value=15000)
+#Configure Feature Selection
+st.sidebar.subheader("Features", text_alignment="center")
+beds = st.sidebar.slider("Number of bedrooms:", min_value=1, max_value=10)
+baths = st.sidebar.slider("Number of bathrooms:", min_value=1, max_value=10)
+size = st.sidebar.slider("Square Footage:", min_value=200, max_value=15000)
 
-#Configure second column
-with col2:
-    st.subheader('Location')
+#Configure location selection
+st.sidebar.subheader('Location', text_alignment="center")
+states = sorted(state_map.keys())
+selected_state = st.sidebar.selectbox("Select State:", states)
 
-    #State selection
-    states = sorted(state_map.keys())
-    selected_state = st.selectbox("Select State:", states)
-
-    #Filter cities based on state
-    filtered_cities = df_locations[df_locations['state'] == selected_state]['city'].unique()
-    filtered_cities = sorted([c for c in filtered_cities if c in city_map])
-    selected_city = st.selectbox("Select City:", filtered_cities)
+#Filter cities based on state
+filtered_cities = df_locations[df_locations['state'] == selected_state]['city'].unique()
+filtered_cities = sorted([c for c in filtered_cities if c in city_map])
+selected_city = st.sidebar.selectbox("Select City:", filtered_cities)
 
 #Prediction processing
-if st.button("Estimate Price"):
+if st.sidebar.button("Estimate Price"):
     state_val = state_map.get(selected_state, metadata['state_val'])
     city_val = city_map.get(selected_city, metadata['city_val'])
 
@@ -67,44 +61,49 @@ if st.button("Estimate Price"):
 
     #Visual aids
     st.divider()
-    st.header("Market Insight and Data Analysis")
+    st.header("Market Insight and Data Analysis", text_alignment="center")
 
-    #Visual 1
-    st.subheader("Biggest Price Factors")
-    price_factors = pd.DataFrame({'Features': ['Bedrooms', 'Bathrooms', 'City Location', 'State Location', 'Size'],
-                                'Price Factor': model.feature_importances_.round(4)
-                                })
+    tab1, tab2, tab3 = st.tabs(["Price Factors", "Price Trend", "Market Comparison"])
 
-    st.bar_chart(data=price_factors, x='Features', y='Price Factor')
-    st.caption('The higher the bar, the bigger the impact on price.')
+    #Bar chart of feature importance
+    with tab1:
+        st.subheader("Biggest Price Factors")
+        price_factors = pd.DataFrame({'Features': ['Bedrooms', 'Bathrooms', 'City Location', 'State Location', 'Size'],
+                                    'Price Factor': model.feature_importances_.round(4)
+                                    })
 
-    #Visual 2
-    st.subheader('Price by Square Footage')
-    size_options = [size * 0.5, size * 0.75, size, size * 1.25, size * 1.5]
-    trend_results = [model.predict(pd.DataFrame({
-        'bed': [beds], 'bath': [baths], 
-        'city_mapping': [city_val], 'state_mapping': [state_val], 
-        'house_size': [s]
-    }))[0] for s in size_options]
+        st.bar_chart(data=price_factors, x='Features', y='Price Factor')
+        st.caption('The higher the bar, the bigger the impact on price.')
 
-    trend_data = pd.DataFrame({
-        'Square Footage': size_options,
-        'Estimated Price': trend_results
-    })
+    #Plot of price trend by square footage
+    with tab2:
+        st.subheader('Price by Square Footage')
+        size_options = [size * 0.5, size * 0.75, size, size * 1.25, size * 1.5]
+        trend_results = [model.predict(pd.DataFrame({
+            'bed': [beds], 'bath': [baths], 
+            'city_mapping': [city_val], 'state_mapping': [state_val], 
+            'house_size': [s]
+        }))[0] for s in size_options]
 
-    fig_line = px.line(trend_data, x='Square Footage', y='Estimated Price', markers=True)
-    fig_line.update_layout(yaxis_tickformat='$,.0f')
-    st.plotly_chart(fig_line, use_container_width=True)
+        trend_data = pd.DataFrame({
+            'Square Footage': size_options,
+            'Estimated Price': trend_results
+        })
 
-    #Visual 3
-    st.subheader("Market Comparison")
+        fig_line = px.line(trend_data, x='Square Footage', y='Estimated Price', markers=True)
+        fig_line.update_layout(yaxis_tickformat='$,.0f')
+        st.plotly_chart(fig_line, use_container_width=True)
 
-    compare_data = pd.DataFrame({
-        'Location': ['Your Estimate', f'{selected_city} Avg', f'{selected_state} Avg'],
-                    'Price': [prediction, city_val, state_val]
-    })
+    #Bar chart comparing user's estimate to city and state averages
+    with tab3:
+        st.subheader("Market Comparison")
 
-    fig_bar = px.bar(compare_data, x='Location', y='Price', color='Location', text_auto='$,.0f')
-    fig_bar.update_traces(textposition='outside')
-    fig_bar.update_layout(yaxis_tickformat='$,.0f', showlegend=False)
-    st.plotly_chart(fig_bar, use_container_width=True)
+        compare_data = pd.DataFrame({
+            'Location': ['Your Estimate', f'{selected_city} Avg', f'{selected_state} Avg'],
+                        'Price': [prediction, city_val, state_val]
+        })
+
+        fig_bar = px.bar(compare_data, x='Location', y='Price', color='Location', text_auto='$,.0f')
+        fig_bar.update_traces(textposition='outside')
+        fig_bar.update_layout(yaxis_tickformat='$,.0f', showlegend=False)
+        st.plotly_chart(fig_bar, use_container_width=True)
