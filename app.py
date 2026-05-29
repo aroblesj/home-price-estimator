@@ -21,9 +21,12 @@ model, city_map, state_map, metadata = load_data()
 #Load location references
 df_locations = pd.read_csv('location_reference.csv')
 
+#Site logo
+st.logo("resources/logo.svg", size="large")
+
 #Create header
-st.title("Home Price Estimator", text_alignment="center")
-st.sidebar.subheader("Select your options below.", text_alignment="center")
+st.sidebar.title("Home Price Estimator", text_alignment="center")
+st.sidebar.markdown("Select your options:", text_alignment="center")
 
 
 #Configure Feature Selection
@@ -48,11 +51,11 @@ if st.sidebar.button("Estimate Price"):
     city_val = city_map.get(selected_city, metadata['city_val'])
 
     input_df = pd.DataFrame({'bed': [beds],
-                             'bath': [baths],
-                             'city_mapping': [city_val],
-                             'state_mapping': [state_val],
-                             'house_size': [size]
-                             })
+                            'bath': [baths],
+                            'city_mapping': [city_val],
+                            'state_mapping': [state_val],
+                            'house_size': [size]
+                            })
     
     prediction = model.predict(input_df)[0]
 
@@ -62,18 +65,28 @@ if st.sidebar.button("Estimate Price"):
     #Visual aids
     st.divider()
     st.header("Market Insight and Data Analysis", text_alignment="center")
+    st.text("Explore the factors influencing your home's value and how it compares to the market.", text_alignment="center")
 
     tab1, tab2, tab3 = st.tabs(["Price Factors", "Price Trend", "Market Comparison"])
 
-    #Bar chart of feature importance
+#Bar chart of feature importance
     with tab1:
         st.subheader("Biggest Price Factors")
-        price_factors = pd.DataFrame({'Features': ['Bedrooms', 'Bathrooms', 'City Location', 'State Location', 'Size'],
-                                    'Price Factor': model.feature_importances_.round(4)
-                                    })
+        price_factors = pd.DataFrame({'Features': 
+                                      ['Bedrooms', 
+                                       'Bathrooms', 
+                                       'City Location', 
+                                       'State Location', 
+                                       'Size'], 
+                                       'Price Factor': 
+                                       model.feature_importances_.round(4)})
 
-        st.bar_chart(data=price_factors, x='Features', y='Price Factor')
-        st.caption('The higher the bar, the bigger the impact on price.')
+        fig_factors = px.bar(price_factors, x='Features', y='Price Factor')
+        fig_factors.update_layout(xaxis=dict(fixedrange=True), yaxis=dict(fixedrange=True))
+
+        st.plotly_chart(fig_factors, config={'scrollZoom': False, 'displayModeBar': False})
+
+        st.text("The chart shows the relative importance of each feature in determining home value. Size and location are the most influential, followed by bedrooms and bathrooms.", text_alignment="center")
 
     #Plot of price trend by square footage
     with tab2:
@@ -92,7 +105,9 @@ if st.sidebar.button("Estimate Price"):
 
         fig_line = px.line(trend_data, x='Square Footage', y='Estimated Price', markers=True)
         fig_line.update_layout(yaxis_tickformat='$,.0f')
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line)
+
+        st.text("The plot shows how estimated prices change with different square footage values, while keeping other features constant. It helps you understand the impact of size on home value.", text_alignment="center")
 
     #Bar chart comparing user's estimate to city and state averages
     with tab3:
@@ -106,4 +121,10 @@ if st.sidebar.button("Estimate Price"):
         fig_bar = px.bar(compare_data, x='Location', y='Price', color='Location', text_auto='$,.0f')
         fig_bar.update_traces(textposition='outside')
         fig_bar.update_layout(yaxis_tickformat='$,.0f', showlegend=False)
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar)
+
+        st.text("The comparison shows your home’s estimated value against the average prices in your city and state, providing context for its local market position.", text_alignment="center")
+
+else:
+    st.info("ℹ️ Configure sidebar options and click ‘Estimate Price’ to see your home’s estimated market value.")
+    st.image("resources/landing_image.svg")
